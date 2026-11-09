@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: book-movie-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: community
+      POSTGRES_PASSWORD: community123
+      POSTGRES_DB: book_movie_community
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U community -d book_movie_community"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    container_name: book-movie-backend
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    environment:
+      PORT: 5000
+      DATABASE_URL: postgresql://community:community123@postgres:5432/book_movie_community?schema=public
+      CLIENT_URL: http://localhost
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    container_name: book-movie-frontend
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+    name: book-movie-community_postgres_data
